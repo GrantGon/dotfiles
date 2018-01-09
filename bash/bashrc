@@ -116,23 +116,3 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-
-# Modified alias begin
-# trash-cli
-# alias rm='trash-put'
-# alias rm-restore='restore-trash'
-# alias rm-list='trash-list'
-# alias rm-empty='trash-empty'
-
-
-# ssh
-alias go250='ssh gongliang@192.168.110.250'
-alias go251='ssh gongliang@192.168.110.251'
-alias go111.9='ssh gongliang@192.168.111.9'
-
-alias du="du -h"
-alias py="python"
-alias py3="python3"
-
-# added by Anaconda2 installer
-export PATH="/home/gongliang/anaconda2/bin:$PATH"
