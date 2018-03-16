@@ -302,8 +302,8 @@ nnoremap    ,td             :TaskList<CR>
 let g:DoxygenToolkit_briefTag_pre="@synopsis  "   
 let g:DoxygenToolkit_paramTag_pre="@param     "   
 let g:DoxygenToolkit_returnTag   ="@returns   "   
-let g:DoxygenToolkit_blockHeader="============================================================================"   
-let g:DoxygenToolkit_blockFooter="============================================================================"   
+let g:DoxygenToolkit_blockHeader="=========================================================================="   
+let g:DoxygenToolkit_blockFooter="=========================================================================="   
 let g:DoxygenToolkit_authorName="Lance"   
 let g:DoxygenToolkit_fileTag = "@filename      "
 " nmap <F6> :Dox<cr>
