@@ -117,6 +117,8 @@ if ! shopt -oq posix; then
   fi
 fi
 
+# **************************************************************
+# **************************************************************
 # Modified alias begin
 # trash-cli
 # alias rm='trash-put'
@@ -124,11 +126,16 @@ fi
 # alias rm-list='trash-list'
 # alias rm-empty='trash-empty'
 
+# source
+# alias sact1.2='source ~/tf1.2/bin/activate'
+alias sact='source activate'
+alias deact='deactivate'
 
 # ssh
-alias go250='ssh gongliang@192.168.110.250'
-alias go251='ssh gongliang@192.168.110.251'
-alias go111.9='ssh gongliang@192.168.111.9'
+alias go249='ssh -X gongliang@192.168.110.249'
+alias go250='ssh -X gongliang@192.168.110.250'
+alias go251='ssh -X gongliang@192.168.110.251'
+alias gohome='ssh -X gongliang@192.168.111.55'
 
 alias du="du -h"
 alias py="python"

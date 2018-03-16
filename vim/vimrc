@@ -304,9 +304,15 @@ let g:DoxygenToolkit_paramTag_pre="@param     "
 let g:DoxygenToolkit_returnTag   ="@returns   "   
 let g:DoxygenToolkit_blockHeader="============================================================================"   
 let g:DoxygenToolkit_blockFooter="============================================================================"   
-let g:DoxygenToolkit_authorName="GL"   
+let g:DoxygenToolkit_authorName="Lance"   
 let g:DoxygenToolkit_fileTag = "@filename      "
-nmap <F6> :Dox<cr>
+" nmap <F6> :Dox<cr>
+nmap <F6>a :DoxAuthor<cr>
+nmap <F6>f :Dox<cr>
+nmap <F6>b :DoxBlock<cr>
+nmap <F6>l :DoxLic<cr>
+nmap <F6>c :DoxClass<cr>
+nmap <F6>m :DoxMember<cr>
 
 " for Command-T
 nnoremap <leader>ct <Esc>:CommandT<CR>
