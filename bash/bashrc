@@ -116,7 +116,6 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-<<<<<<< HEAD
 
 # **************************************************************
 # **************************************************************
@@ -141,6 +140,8 @@ alias gohome='ssh -X gongliang@192.168.111.55'
 alias du="du -h"
 alias py="python"
 alias py3="python3"
+alias rm="rm -rf"
+alias git_push="git push origin master"
 
 # added by Anaconda2 installer
 export PATH="/home/gongliang/anaconda2/bin:$PATH"
