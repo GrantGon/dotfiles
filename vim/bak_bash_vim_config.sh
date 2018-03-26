@@ -21,9 +21,6 @@ git submodule add git://github.com/vim-scripts/The-NERD-tree.git bundle/nerdtree
 git submodule add git://github.com/scrooloose/nerdcommenter.git bundle/nerdcommenter
 git submodule add git://github.com/sontek/rope-vim.git bundle/ropevim
 git submodule add git://github.com/vim-scripts/DoxygenToolkit.vim.git bundle/DoxygenToolkit
-git submodule add git://github.com/Lokaltog/vim-powerline.git bundle/powerline
-git submodule add git://github.com/tomasr/molokai.git bundle/molokai
-
 git submodule init
 git submodule update
 git submodule foreach git submodule init
