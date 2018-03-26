@@ -8,7 +8,7 @@ git submodule add git://github.com/wincent/Command-T.git bundle/command-t
 git submodule add git://github.com/Raimondi/delimitMate.git bundle/delmitmate
 git submodule add git://github.com/docunext/closetag.vim.git bundle/closetag
 git submodule add git://github.com/majutsushi/tagbar.git bundle/tagbar
-#git submodule add git://github.com/altercation/vim-colors-solarized.git bundle/solarized
+# git submodule add git://github.com/altercation/vim-colors-solarized.git bundle/solarized
 git submodule add git://github.com/mitechie/pyflakes-pathogen.git bundle/pyflakes
 git submodule add git://github.com/mileszs/ack.vim.git bundle/ack
 git submodule add git://github.com/sjl/gundo.vim.git bundle/gundo
@@ -22,7 +22,7 @@ git submodule add git://github.com/scrooloose/nerdcommenter.git bundle/nerdcomme
 git submodule add git://github.com/sontek/rope-vim.git bundle/ropevim
 git submodule add git://github.com/vim-scripts/DoxygenToolkit.vim.git bundle/DoxygenToolkit
 git submodule add git://github.com/Lokaltog/vim-powerline.git bundle/powerline
-git submodule add git://github.com/tomasr/molokai.git bundle/molokai
+# git submodule add git://github.com/tomasr/molokai.git bundle/molokai
 
 git submodule init
 git submodule update
