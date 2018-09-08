@@ -90,13 +90,13 @@ function! s:LoopProxy(type)
     " calling when autocmd is executed
     if g:pytest_looponfail == 1
         if a:type == 'method'
-            call s:ThisMethod(0, 'False')
+            call s:ThisMethod(0, 'False', [], [])
         elseif a:type == 'class'
-            call s:ThisClass(0, 'False')
+            call s:ThisClass(0, 'False', [], [])
         elseif a:type == 'function'
-            call s:ThisFunction(0, 'False')
+            call s:ThisFunction(0, 'False', [], [])
         elseif a:type == 'file'
-            call s:ThisFile(0, 'False')
+            call s:ThisFile(0, 'False', [], [])
         endif
 
         " FIXME Removing this for now until I can find
@@ -328,7 +328,7 @@ endfunction
 
 
 function! s:CurrentPath()
-    let cwd = shellescape(expand("%:p"))
+    let cwd = fnameescape(expand("%:p"))
     return cwd
 endfunction
 
@@ -554,19 +554,30 @@ function! s:ResetAll()
 endfunction!
 
 
-function! s:RunPyTest(path, ...)
+function! s:RunPyTest(path, ...) abort
+    let parametrized = 0
+    let extra_flags = ''
+    let job_id = get(b:, 'job_id')
+
+    if !exists("g:pytest_use_async")
+      let s:pytest_use_async=1
+    else
+      let s:pytest_use_async=g:pytest_use_async
+    endif
+
     if (a:0 > 0)
       let parametrized = a:1
-    else
-      let parametrized = 0
+      if len(a:2)
+        let extra_flags = a:2
+      endif
     endif
 
     let g:pytest_last_session = ""
 
     if (len(parametrized) && parametrized != "0")
-        let cmd = "py.test -k " . parametrized . " --tb=short " . a:path
+        let cmd = "py.test -k " . parametrized . " " . extra_flags . " --tb=short " . a:path
     else
-        let cmd = "py.test --tb=short " . a:path
+        let cmd = "py.test " . extra_flags . " --tb=short " . a:path
     endif
 
     " NeoVim support
@@ -592,9 +603,30 @@ function! s:RunPyTest(path, ...)
       return
     endif
 
+    " Vim 8 support
+    if v:version >= 800 && s:pytest_use_async == 1
+      if type(job_id) != type(0)
+        call job_stop(job_id)
+      endif
+
+      let b:job_id = job_start(cmd, {'close_cb': 'CloseHandler'})
+
+      return
+    endif
+
+
     let stdout = system(cmd)
     call s:HandleOutput(stdout)
 endfunction
+
+
+func! CloseHandler(channel)
+  let stdout = ""
+  while ch_status(a:channel, {'part': 'out'}) == 'buffered'
+    let stdout = stdout . ch_read(a:channel) . "\n"
+  endwhile
+  call s:HandleOutput(stdout)
+endfunc
 
 
 function! s:HandleOutputNeoVim(...) dict
@@ -620,6 +652,7 @@ function! s:HandleOutput(stdout)
     for w in split(stdout, '\n')
         if w =~ '\v\=\=\s+\d+ passed in'
             call s:ParseSuccess(out)
+            let g:pytest_looponfail = 0
             return
         elseif w =~ '\v\s+(FAILURES)\s+'
             call s:ParseFailures(out)
@@ -628,6 +661,8 @@ function! s:HandleOutput(stdout)
             call s:ParseErrors(out)
             return
         elseif w =~ '\v^(.*)\s*ERROR:\s+'
+            call s:ParseError(out)
+            return
             call s:RedBar()
             echo "py.test had an Error, see :Pytest session for more information"
             if exists('$VIRTUAL_ENV')
@@ -741,6 +776,67 @@ function! s:ParseFailures(stdout)
     endif
 endfunction
 
+function! s:ParseError(stdout)
+  " Unlike ParseErrors, this will try to inspect a (generally) fatal error
+  " when running pytest. The report for an error looks similar to:
+  " ============================= test session starts ==============================
+  " platform darwin -- Python 2.7.14, pytest-3.4.1, py-1.5.2, pluggy-0.6.0
+  " rootdir: /Users/alfredo/vim/pytest.vim/tests, inifile: pytest.ini
+  " plugins: inobject-0.0.1
+  " collected 0 items / 1 errors
+  "
+  " ==================================== ERRORS ====================================
+  " ________________ ERROR collecting fixtures/test_import_error.py ________________
+  " ImportError while importing test module '/Users/alfredo/vim/pytest.vim/tests/fixtures/test_import_error.py'.
+  " Hint: make sure your test modules/packages have valid Python names.
+  " Traceback:
+  " test_import_error.py:1: in <module>
+  "     import DoesNotExistModule
+  " E   ImportError: No module named DoesNotExistModule
+  " !!!!!!!!!!!!!!!!!!! Interrupted: 1 errors during collection !!!!!!!!!!!!!!!!!!!!
+  " =========================== 1 error in 0.12 seconds ============================
+
+    " Pointers and default variables
+    let failed = 1
+    let errors = {}
+    let error = {}
+    let no_tests_found = 0
+    " Loop through the output and build the error dict
+
+    for w in split(a:stdout, '\n')
+        if w =~ '\v^E\s+(File)'
+            let match_line_no = matchlist(w, '\v\s+(line)\s+(\d+)')
+            let error['line'] = match_line_no[2]
+            let error['file_line'] = match_line_no[2]
+            let split_file = split(w, "E ")
+            let match_file = matchlist(split_file[0], '\v"(.*.py)"')
+            let error['file_path'] = match_file[1]
+            let error['path'] = match_file[1]
+        elseif w =~ '\v^(.*)\.py:(\d+)'
+            let match_result = matchlist(w, '\v:(\d+)')
+            let error.line = match_result[1]
+            let file_path = matchlist(w, '\v(.*.py):')
+            let error.path = file_path[1]
+            let error.file_path = file_path[1]
+        elseif w =~ '\v^ERROR:\s+not\s+found'
+          let message = "No valid test names found. No tests ran. See :Pytest session"
+          return s:WarningMessage(message)
+        endif
+        if w =~ '\v^E\s+(\w+):\s+'
+            let split_error = split(w, "E ")
+            let match_error = matchlist(split_error[0], '\v(\w+):')
+            let error['exception'] = match_error[1]
+            let actual_error = split(split_error[0], match_error[0])[1]
+            let error.error = substitute(actual_error,"^\\s\\+\\|\\s\\+$","","g")
+        endif
+    endfor
+
+    let errors[1] = error
+
+    let g:pytest_session_errors = errors
+    call s:ShowFails(1)
+endfunction
+
 
 function! s:ParseErrors(stdout)
     " Pointers and default variables
@@ -751,6 +847,8 @@ function! s:ParseErrors(stdout)
 
     for w in split(a:stdout, '\n')
        if w =~ '\v\s+ERROR\s+collecting'
+            call s:ParseError(a:stdout)
+            return
             call s:RedBar()
             echo "py.test had an error collecting tests, see :Pytest session for more information"
             return
@@ -806,19 +904,44 @@ endfunction
 function! s:ParseSuccess(stdout) abort
     let passed = 0
     let xfailed = 0
+    let collected_tests = 0
+    let no_tests_ran = 0
     " A passing test (or tests would look like:
     " ========================== 17 passed in 0.43 seconds ===========================
     " this would insert that into the resulting GreenBar but only the
     " interesting portion
+    "
+    "
+" ERROR: not found: /Users/alfredo/vim/pytest.vim/tests/fixtures/test_functions.py::foo
+" (no name '/Users/alfredo/vim/pytest.vim/tests/fixtures/test_functions.py::foo' in any of [<Module 'fixtures/test_functions.py'>])
     for w in split(a:stdout, '\n')
         if w =~ '\v^\={14,}\s+\d+\s+passed'
             let passed = matchlist(w, '\v\d+\s+passed(.*)\s+')[0]
         elseif w =~ '\v^\={14,}\s+\d+\s+skipped'
             let passed = matchlist(w, '\v\d+\s+skipped(.*)\s+')[0]
+        elseif w =~ '\v^\={14,}\s+no\s+tests\s+ran'
+            let no_tests_ran = 1
+        elseif w =~ '\v^ERROR:\s+not\s+found'
+            let no_tests_ran = 1
+        elseif w =~ '\v\s+collected\s+\d+\s+items'
+            let collected_tests = matchlist(w, '\v\d+')[0]
         elseif w =~ '\v\s+\d+\s+xfailed'
             let xfailed = matchlist(w, '\v\d+\s+xfailed(.*)\s+')[0]
         endif
     endfor
+
+    " if no tests ran, no need to continue processing
+    " TODO make a helper out of this
+    if no_tests_ran
+      redraw
+      let message = collected_tests . " collected tests, no tests ran. See :Pytest session"
+      let length = strlen(message) + 1
+      hi YellowBar ctermfg=black ctermbg=yellow guibg=#e5e500 guifg=black
+      echohl YellowBar
+      echon message . repeat(" ",&columns - length)
+      echohl
+      return
+    endif
 
     " fix this obvious redundancy
     if ( passed || xfailed)
@@ -829,13 +952,19 @@ function! s:ParseSuccess(stdout) abort
         endif
         redraw
         let length = strlen(report) + 1
+        let default_showcmd = &showcmd
         " The GUI looks too bright with plain green as a background
         " so make sure we use a solarized-like green and set the foreground
         " to black
+        set noshowcmd
         hi GreenBar ctermfg=black ctermbg=green guibg=#719e07 guifg=black
+        "hi GreenBar ctermfg=black ctermbg=green guibg=green guifg=black
         echohl GreenBar
         echon report . repeat(" ",&columns - length)
         echohl
+        if default_showcmd
+          set showcmd
+        endif
     else
         " At this point we have parsed the output and have not been able to
         " determine if the test run has had pytest errors, or faillures,
@@ -871,11 +1000,23 @@ function! s:GreenBar()
 endfunction
 
 
+function! s:WarningMessage(message)
+    redraw
+    let length = strlen(a:message) + 1
+    hi YellowBar ctermfg=black ctermbg=yellow guibg=#e5e500 guifg=black
+    echohl YellowBar
+    echon a:message . repeat(" ",&columns - length)
+    echohl
+    return
+endfunction
+
+
 function! s:ThisMethod(verbose, ...)
+    let extra_flags = ''
     let save_cursor = getpos('.')
     call s:ClearAll()
     let m_name  = s:NameOfCurrentMethod()
-    let is_parametrized = s:HasPythonDecorator(line('.'))
+    let is_parametrized = s:IsParametrized(line('.'))
 
     let c_name  = s:NameOfCurrentClass()
     let abspath = s:CurrentPath()
@@ -908,19 +1049,25 @@ function! s:ThisMethod(verbose, ...)
       call s:Delgado(path, a:2, message)
       return
     endif
+
+    if len(a:3)
+        let extra_flags = join(a:3, ' ')
+    endif
+
     if ((a:1 == '--pdb') || (a:1 == '-s'))
-        call s:Pdb(path, a:1, parametrized_flag)
+        call s:Pdb(path, a:1, parametrized_flag, extra_flags)
         return
     endif
+
     if (a:verbose == 1)
         call s:RunInSplitWindow(path)
     else
-       call s:RunPyTest(path, parametrized_flag)
+       call s:RunPyTest(path, parametrized_flag, extra_flags)
     endif
 endfunction
 
 
-function! s:HasPythonDecorator(line)
+function! s:IsParametrized(line)
     " Get to the previous line where the decorator lives
     let line = a:line -1
     " if it is whitespace or there is nothing there, return
@@ -932,7 +1079,13 @@ function! s:HasPythonDecorator(line)
     " empty lines
     while (getline(line) !~ '^\\s*\\S')
         if (getline(line) =~ '\v^(.*\@[a-zA-Z])')
-            return 1
+            " this is the only situation where we are decorated, so check
+            " to see if this is really pytest.mark.parametrized or just some
+            " other decorator
+            let decorated_line = getline(line)
+            if (decorated_line =~ '\v(.*)parametrize(.*)') && (decorated_line !~ '\v^\s*#(.*)')
+                return 1
+            endif
         elseif (getline(line) =~ '\v^\s*(.*def)\s+(\w+)\s*\(\s*')
             " so we found either a function or a class, therefore, no way we have
             " a decorator
@@ -948,16 +1101,22 @@ endfunction
 
 
 function! s:ThisFunction(verbose, ...)
+    let extra_flags = ''
     let save_cursor = getpos('.')
     call s:ClearAll()
     let c_name      = s:NameOfCurrentFunction()
-    let is_parametrized = s:HasPythonDecorator(line('.'))
+    let is_parametrized = s:IsParametrized(line('.'))
     let abspath     = s:CurrentPath()
     if (strlen(c_name) == 1)
         call setpos('.', save_cursor)
         call s:Echo("Unable to find a matching function for testing")
         return
     endif
+
+    " If we didn't error, still, save the cursor so we are back
+    " to the original position
+    call setpos('.', save_cursor)
+
     let message  = "py.test ==> Running tests for function " . c_name
     call s:Echo(message, 1)
 
@@ -972,20 +1131,25 @@ function! s:ThisFunction(verbose, ...)
       return
     endif
 
+    if len(a:3)
+        let extra_flags = join(a:3, ' ')
+    endif
+
     if ((a:1 == '--pdb') || (a:1 == '-s'))
-        call s:Pdb(path, a:1, c_name)
+        call s:Pdb(path, a:1, c_name, extra_flags)
         return
     endif
 
     if (a:verbose == 1)
         call s:RunInSplitWindow(path)
     else
-        call s:RunPyTest(path, c_name)
+        call s:RunPyTest(path, c_name, extra_flags)
     endif
 endfunction
 
 
 function! s:ThisClass(verbose, ...)
+    let extra_flags = ''
     let save_cursor = getpos('.')
     call s:ClearAll()
     let c_name      = s:NameOfCurrentClass()
@@ -1005,19 +1169,24 @@ function! s:ThisClass(verbose, ...)
     endif
 
     if ((a:1 == '--pdb') || (a:1 == '-s'))
-        call s:Pdb(path, a:1)
+        call s:Pdb(path, a:1, 0, extra_flags)
         return
     endif
 
+    if len(a:3)
+        let extra_flags = join(a:3, ' ')
+    endif
+
     if (a:verbose == 1)
-        call s:RunInSplitWindow(path)
+        call s:RunInSplitWindow(path, extra_flags)
     else
-        call s:RunPyTest(path)
+        call s:RunPyTest(path, 0, extra_flags)
     endif
 endfunction
 
 
 function! s:ThisFile(verbose, ...)
+    let extra_flags = ''
     call s:ClearAll()
     let message = "py.test ==> Running tests for entire file"
     call s:Echo(message, 1)
@@ -1028,18 +1197,23 @@ function! s:ThisFile(verbose, ...)
     endif
 
     if ((a:1 == '--pdb') || (a:1 == '-s'))
-        call s:Pdb(abspath, a:1)
+        call s:Pdb(abspath, a:1, 0, extra_flags)
         return
+    endif
+
+    if len(a:3)
+        let extra_flags = join(a:3, ' ')
     endif
 
     if (a:verbose == 1)
         call s:RunInSplitWindow(abspath)
     else
-        call s:RunPyTest(abspath)
+        call s:RunPyTest(abspath, 0, extra_flags)
     endif
 endfunction
 
 function! s:ThisProject(verbose, ...)
+    let extra_flags = ''
     call s:ClearAll()
     let message = "py.test ==> Running tests for entire project"
     call s:Echo(message, 1)
@@ -1051,31 +1225,41 @@ function! s:ThisProject(verbose, ...)
         return
     endif
 
+    if len(a:2)
+        let extra_flags = join(a:2, ' ')
+    endif
+
     if ((a:1 == '--pdb') || (a:1 == '-s'))
-        call s:Pdb(abspath, a:1)
+        call s:Pdb(abspath, a:1, 0, extra_flags)
         return
     endif
 
     if (a:verbose == 1)
         call s:RunInSplitWindow(abspath)
     else
-        call s:RunPyTest(abspath)
+        call s:RunPyTest(abspath, 0, extra_flags)
     endif
 endfunction
 
 
 function! s:Pdb(path, ...)
+    let extra_flags = ''
     if (a:0 >= 2)
       let parametrized = a:2
+      if len(a:3)
+        let extra_flags = a:3
+      endif
     endif
 
     if (len(parametrized) && parametrized != "0")
-        let pdb_command = "py.test " . a:1 . " -k " . parametrized . " " . a:path
+        let pdb_command = "py.test " . a:1 . " -k " . parametrized . " " . extra_flags . " " . a:path
     else
-        let pdb_command = "py.test " . a:1 . " " . a:path
+        let pdb_command = "py.test " . a:1 . " " . extra_flags . " " . a:path
     endif
 
-    if has('nvim')
+    if has('terminal')
+        exe ":term " . pdb_command
+    elseif has('nvim')
         exe ":terminal! " . pdb_command
     else
         exe ":!" . pdb_command
@@ -1131,6 +1315,8 @@ function! s:Proxy(action, ...)
     let pdb     = 'False'
     let looponfail = 0
     let delgado = []
+    let extra_flags = []
+    let has_extra_flags = 0
 
     if (a:0 > 0)
         if (a:1 == 'verbose')
@@ -1144,42 +1330,48 @@ function! s:Proxy(action, ...)
             let looponfail = 1
         elseif (a:1 == 'delgado')
             let delgado = a:000
+        else
+          let extra_flags = a:000[0:]
+          let has_extra_flags = 1
+        endif
+        if !has_extra_flags
+            let extra_flags = a:000[1:]
         endif
     endif
     if (a:action == "class")
         if looponfail == 1
             call s:LoopOnFail(a:action)
-            call s:ThisClass(verbose, pdb, delgado)
+            call s:ThisClass(verbose, pdb, delgado, extra_flags)
         else
-            call s:ThisClass(verbose, pdb, delgado)
+            call s:ThisClass(verbose, pdb, delgado, extra_flags)
         endif
     elseif (a:action == "method")
         if looponfail == 1
             call s:LoopOnFail(a:action)
-            call s:ThisMethod(verbose, pdb, delgado)
+            call s:ThisMethod(verbose, pdb, delgado, extra_flags)
         else
-            call s:ThisMethod(verbose, pdb, delgado)
+            call s:ThisMethod(verbose, pdb, delgado, extra_flags)
         endif
     elseif (a:action == "function")
         if looponfail == 1
             call s:LoopOnFail(a:action)
-            call s:ThisFunction(verbose, pdb, delgado)
+            call s:ThisFunction(verbose, pdb, delgado, extra_flags)
         else
-            call s:ThisFunction(verbose, pdb, delgado)
+            call s:ThisFunction(verbose, pdb, delgado, extra_flags)
         endif
     elseif (a:action == "file")
         if looponfail == 1
             call s:LoopOnFail(a:action)
-            call s:ThisFile(verbose, pdb, delgado)
+            call s:ThisFile(verbose, pdb, delgado, extra_flags)
         else
-            call s:ThisFile(verbose, pdb, delgado)
+            call s:ThisFile(verbose, pdb, delgado, extra_flags)
         endif
     elseif (a:action == "project" )
         if looponfail ==1
             call s:LoopOnFail(a:action)
-            call s:ThisProject(verbose, pdb, delgado)
+            call s:ThisProject(verbose, pdb, delgado, extra_flags)
         else
-            call s:ThisProject(verbose, pdb,delgado)
+            call s:ThisProject(verbose, pdb,delgado, extra_flags)
         endif
     elseif (a:action == "projecttestwd")
         let projecttests = s:ProjectPath()

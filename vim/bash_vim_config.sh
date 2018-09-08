@@ -1,3 +1,4 @@
+git init
 git submodule add git://github.com/tpope/vim-fugitive.git bundle/fugitive
 git submodule add git://github.com/msanders/snipmate.vim.git bundle/snipmate
 git submodule add git://github.com/tpope/vim-surround.git bundle/surround
@@ -8,7 +9,7 @@ git submodule add git://github.com/wincent/Command-T.git bundle/command-t
 git submodule add git://github.com/Raimondi/delimitMate.git bundle/delmitmate
 git submodule add git://github.com/docunext/closetag.vim.git bundle/closetag
 git submodule add git://github.com/majutsushi/tagbar.git bundle/tagbar
-# git submodule add git://github.com/altercation/vim-colors-solarized.git bundle/solarized
+git submodule add git://github.com/altercation/vim-colors-solarized.git bundle/solarized
 git submodule add git://github.com/mitechie/pyflakes-pathogen.git bundle/pyflakes
 git submodule add git://github.com/mileszs/ack.vim.git bundle/ack
 git submodule add git://github.com/sjl/gundo.vim.git bundle/gundo
@@ -28,3 +29,5 @@ git submodule init
 git submodule update
 git submodule foreach git submodule init
 git submodule foreach git submodule update
+
+rm .git

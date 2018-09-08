@@ -2,6 +2,8 @@ if [ "${BASH-no}" != "no" ]; then
     [ -r ~/.bashrc ] && . ~/.bashrc
 fi
 
+. ./.bashrc
+
 # added by Anaconda2 installer
 # export path
 export PATH="/Users/lance/anaconda2/bin:$PATH"
