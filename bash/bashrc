@@ -152,3 +152,4 @@ export LSCOLORS=bxfxhxhxgxhxhxgxgxbxbx
 
 # added by Anaconda2 installer
 export PATH="/home/gongliang/anaconda2/bin:$PATH"
+PATH=$PATH:$HOME/bin:/sbin:/usr/bin:/usr/sbin
