@@ -128,14 +128,17 @@ fi
 
 # source
 # alias sact1.2='source ~/tf1.2/bin/activate'
-alias sact='source activate'
-alias deact='deactivate'
+# alias sact='source activate'
+# alias deact='deactivate'
+alias sact='conda activate'
+alias deact='conda deactivate'
 
 # ssh
 # alias go249='ssh -X gongliang@192.168.110.249'
 # alias go250='ssh -X gongliang@192.168.110.250'
 # alias go251='ssh -X gongliang@192.168.110.251'
 # alias gohome='ssh -X gongliang@192.168.111.55'
+alias gofhpt='ssh -X root@10.95.130.142'
 
 alias du="du -h"
 alias py="python"
@@ -149,7 +152,3 @@ export CLICOLOR=1
 export TERM=xterm-color
 # export LSCOLORS=gxfxaxdxcxegedabagacad
 export LSCOLORS=bxfxhxhxgxhxhxgxgxbxbx
-
-# added by Anaconda2 installer
-export PATH="/home/gongliang/anaconda2/bin:$PATH"
-PATH=$PATH:$HOME/bin:/sbin:/usr/bin:/usr/sbin
