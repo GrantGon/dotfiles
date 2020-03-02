@@ -1,0 +1,36 @@
+# some more ls aliases
+alias ll='ls -lFh'
+alias la='ls -alFh'
+alias ld='ls -CF'
+alias l='ls -lFh'
+
+# Add an "alert" alias for long running commands.  Use like so:
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Modified alias begin
+# alias rm='trash-put'
+# alias rm-restore='restore-trash'
+# alias rm-list='trash-list'
+# alias rm-empty='trash-empty'
+#
+# alias sact='source activate'
+# alias deact='deactivate'
+alias sact='conda activate'
+alias deact='conda deactivate'
+
+# link to the specified  servers by ssh.
+# alias go249='ssh -X gongliang@192.168.110.249'
+# alias go250='ssh -X gongliang@192.168.110.250'
+# alias go251='ssh -X gongliang@192.168.110.251'
+# alias gohome='ssh -X gongliang@192.168.111.55'
+alias gofhpt='ssh -X root@10.95.130.142'
+
+# some other aliases.
+alias du="du -h"
+alias py="python"
+alias py3="python3"
+alias rm="rm -rf"
+alias cp="cp -rf"
+alias cd..="cd .."
+alias cd-="cd -"
+alias git_push="git push origin master"
